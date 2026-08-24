@@ -1,0 +1,30 @@
+{
+  "name": "safe-statediff",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Executes a Safe transaction against a real Safe in Anvil and gates CI on the observed protected-state diff.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "safe-statediff": "dist/src/cli/main.js"
+  },
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "clean": "tsc --build --clean",
+    "lint": "eslint src test eslint.config.js",
+    "test": "npm run build && node --test dist/test"
+  },
+  "dependencies": {
+    "viem": "2.55.19",
+    "yaml": "2.9.0"
+  },
+  "devDependencies": {
+    "@types/node": "20.19.43",
+    "eslint": "10.9.0",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.67.0"
+  }
+}
