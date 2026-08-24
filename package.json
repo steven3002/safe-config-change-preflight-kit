@@ -18,6 +18,7 @@
     "test": "npm run build && node --test dist/test"
   },
   "dependencies": {
+    "@safe-global/safe-deployments": "1.37.62",
     "viem": "2.55.19",
     "yaml": "2.9.0"
   },

@@ -1,16 +1,5 @@
 import type { Address, Hex } from 'viem';
-
-/**
- * Safe call semantics. `DelegateCall` runs the target's code in the Safe's own storage context,
- * which is how a transaction can rewrite owners or the singleton pointer without presenting any
- * Safe configuration selector.
- */
-export const Operation = {
-  Call: 0,
-  DelegateCall: 1,
-} as const;
-
-export type Operation = (typeof Operation)[keyof typeof Operation];
+import type { Operation } from '../safe/transaction-parameters.js';
 
 /** The single normalized transaction shape every later stage of the pipeline consumes. */
 export interface SafeTransaction {

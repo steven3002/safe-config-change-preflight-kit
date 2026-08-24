@@ -1,13 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parseArguments, UsageError } from '../../src/cli/args.js';
-import { Operation } from '../../src/input/transaction.js';
+import { Operation } from '../../src/safe/transaction-parameters.js';
 
 test('check takes a file path and defaults to a call', () => {
   assert.deepEqual(parseArguments(['check', 'tx.json']), {
     kind: 'check',
     filePath: 'tx.json',
     operation: Operation.Call,
+    safeAddress: undefined,
   });
 });
 
@@ -16,6 +17,7 @@ test('--operation selects delegatecall', () => {
     kind: 'check',
     filePath: 'tx.json',
     operation: Operation.DelegateCall,
+    safeAddress: undefined,
   });
 });
 
@@ -31,6 +33,11 @@ test('bad usage is rejected with a message that names the problem', () => {
     [['check'], 'needs the path'],
     [['check', 'a.json', 'b.json'], 'takes one file'],
     [['check', 'tx.json', '--operation', 'staticcall'], 'call or delegatecall'],
+    [['check', 'tx.json', '--safe', '0x1234'], '--safe is not a valid address'],
+    [
+      ['check', 'tx.json', '--safe', '0xe57012AE69be66ad9bec7dadb49c1b6c65bd4ca6'],
+      'checksum does not match',
+    ],
     [['check', 'tx.json', '--rpc-url', 'http://x'], 'Unknown option'],
   ];
   for (const [argv, fragment] of cases) {
@@ -40,4 +47,16 @@ test('bad usage is rejected with a message that names the problem', () => {
       `expected '${fragment}' for ${argv.join(' ')}`,
     );
   }
+});
+
+test('--safe supplies the Safe the file may omit, canonicalised', () => {
+  assert.deepEqual(
+    parseArguments(['check', 'tx.json', '--safe', '0xe57012ae69be66ad9bec7dadb49c1b6c65bd4ca6']),
+    {
+      kind: 'check',
+      filePath: 'tx.json',
+      operation: Operation.Call,
+      safeAddress: '0xE57012ae69BE66aD9beC7dadb49C1b6C65bD4ca6',
+    },
+  );
 });

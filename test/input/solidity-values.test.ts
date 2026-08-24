@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parseSafeTransaction } from '../../src/input/tx-builder.js';
-import { Operation } from '../../src/input/transaction.js';
+import { Operation } from '../../src/safe/transaction-parameters.js';
 import { InputError } from '../../src/input/errors.js';
 
 /**

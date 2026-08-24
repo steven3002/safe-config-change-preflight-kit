@@ -1,5 +1,6 @@
 import { parseArgs } from 'node:util';
-import { Operation } from '../input/transaction.js';
+import { getAddress, isAddress, type Address } from 'viem';
+import { Operation } from '../safe/transaction-parameters.js';
 
 /** Parse and validate command-line arguments into a command the entry point can run. */
 
@@ -11,6 +12,8 @@ export interface CheckCommand {
   readonly kind: 'check';
   readonly filePath: string;
   readonly operation: Operation;
+  /** Supplied when the file does not declare `meta.createdFromSafeAddress`, which is optional. */
+  readonly safeAddress: Address | undefined;
 }
 
 export interface HelpCommand {
@@ -25,9 +28,13 @@ Usage:
   safe-statediff check <transaction.json> [options]
 
 Options:
+  --safe <address>                 The Safe to check against. Required only when the file omits
+                                   meta.createdFromSafeAddress, which Safe's own format allows.
   --operation <call|delegatecall>  Call semantics to execute the transaction with.
                                    Defaults to call. The Transaction Builder format has no field
-                                   for this, so a delegatecall must be declared here.
+                                   for this, so a delegatecall must be declared here. A file
+                                   carrying several transactions is always a delegatecall, because
+                                   it executes through MultiSendCallOnly.
   -h, --help                       Show this message.
 `;
 
@@ -37,7 +44,11 @@ const OPERATIONS: Readonly<Record<string, Operation>> = {
 };
 
 export function parseArguments(argv: readonly string[]): Command {
-  let values: { operation?: string | undefined; help?: boolean | undefined };
+  let values: {
+    operation?: string | undefined;
+    safe?: string | undefined;
+    help?: boolean | undefined;
+  };
   let positionals: string[];
 
   try {
@@ -47,6 +58,7 @@ export function parseArguments(argv: readonly string[]): Command {
       strict: true,
       options: {
         operation: { type: 'string' },
+        safe: { type: 'string' },
         help: { type: 'boolean', short: 'h' },
       },
     }));
@@ -72,7 +84,19 @@ export function parseArguments(argv: readonly string[]): Command {
     kind: 'check',
     filePath: rest[0] as string,
     operation: readOperation(values.operation),
+    safeAddress: readSafeAddress(values.safe),
   };
+}
+
+function readSafeAddress(raw: string | undefined): Address | undefined {
+  if (raw === undefined) return undefined;
+  const trimmed = raw.trim();
+  if (!isAddress(trimmed)) {
+    throw new UsageError(
+      `--safe is not a valid address or its checksum does not match: '${raw}'`,
+    );
+  }
+  return getAddress(trimmed);
 }
 
 function readOperation(raw: string | undefined): Operation {

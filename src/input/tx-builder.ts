@@ -1,18 +1,32 @@
 import { readFile } from 'node:fs/promises';
-import type { Hex } from 'viem';
+import { isAddressEqual, type Address, type Hex } from 'viem';
+import {
+  encodeMultiSendCallOnly,
+  resolveMultiSendCallOnly,
+  type MultiSendCall,
+} from '../safe/multisend.js';
+import { Operation } from '../safe/transaction-parameters.js';
 import { parseBatchFile, type BatchFile, type BatchTransaction } from './batch-file.js';
 import { InputError, atTransaction } from './errors.js';
 import { encodeDeclaredCall } from './method-encoding.js';
-import { Operation, type SafeTransaction } from './transaction.js';
+import type { SafeTransaction } from './transaction.js';
 
 /** Parse and validate a Safe Transaction Builder JSON file into a `SafeTransaction`. */
 
 export interface LoadOptions {
   /**
    * The Transaction Builder format has no field for call semantics, so this cannot be read from
-   * the file and must be supplied by the caller.
+   * the file and must be supplied by the caller. It is overridden for a batch, which only executes
+   * as a delegatecall.
    */
   readonly operation: Operation;
+  /**
+   * The Safe to check against, used when the file does not name one in
+   * `meta.createdFromSafeAddress`.
+   */
+  readonly safeAddress?: Address | undefined;
+  /** The `MultiSendCallOnly` release to wrap a batch with; defaults inside the Safe layer. */
+  readonly multiSendVersion?: string | undefined;
 }
 
 export async function loadSafeTransaction(
@@ -44,30 +58,97 @@ function normalize(file: BatchFile, options: LoadOptions): SafeTransaction {
   if (file.transactions.length === 0) {
     throw new InputError("'transactions' is empty; there is nothing to check");
   }
-  if (file.transactions.length > 1) {
+
+  const safeAddress = resolveSafeAddress(file.safeAddress, options.safeAddress);
+  const calls = file.transactions.map((transaction, index) => {
+    try {
+      return { ...transaction, data: resolveCalldata(transaction) };
+    } catch (cause) {
+      throw atTransaction(index, cause);
+    }
+  });
+
+  const [single] = calls;
+  if (calls.length === 1 && single !== undefined) {
+    return {
+      to: single.to,
+      value: single.value,
+      data: single.data,
+      operation: options.operation,
+      safeAddress,
+      chainId: file.chainId,
+    };
+  }
+
+  return wrapBatch(calls, file.chainId, safeAddress, options.multiSendVersion);
+}
+
+/**
+ * Wrap several transactions into the single `MultiSendCallOnly` delegatecall a Safe would use to
+ * execute them as one transaction.
+ *
+ * `operation` is forced to delegatecall regardless of what the caller asked for, because a plain
+ * call would run the batch in MultiSend's own context rather than the Safe's. `value` is zero
+ * because a delegatecall carries none ,  the EVM ignores the field entirely ,  and each inner call
+ * draws its value from the Safe's own balance.
+ */
+function wrapBatch(
+  calls: readonly (BatchTransaction & { data: Hex })[],
+  chainId: number,
+  safeAddress: Address,
+  multiSendVersion: string | undefined,
+): SafeTransaction {
+  const inner: MultiSendCall[] = calls.map((call) => ({
+    to: call.to,
+    value: call.value,
+    data: call.data,
+    operation: Operation.Call,
+  }));
+
+  let to: Address;
+  let data: Hex;
+  try {
+    to = resolveMultiSendCallOnly({ chainId, version: multiSendVersion });
+    data = encodeMultiSendCallOnly(inner);
+  } catch (cause) {
+    const detail = cause instanceof Error ? cause.message : String(cause);
     throw new InputError(
-      `file contains ${file.transactions.length} transactions; batched files are not supported, ` +
-        'because executing them as one Safe transaction would require a MultiSend delegatecall ' +
-        'that this tool does not construct. Split the batch into single-transaction files.',
+      `file contains ${calls.length} transactions and cannot be batched: ${detail}`,
+      { cause },
     );
   }
 
-  const transaction = file.transactions[0] as BatchTransaction;
-  let data: Hex;
-  try {
-    data = resolveCalldata(transaction);
-  } catch (cause) {
-    throw atTransaction(0, cause);
+  return { to, value: 0n, data, operation: Operation.DelegateCall, safeAddress, chainId };
+}
+
+/**
+ * `meta.createdFromSafeAddress` is optional in Safe's own `BatchFile` type, so a file that omits it
+ * is well-formed and the caller supplies the Safe instead.
+ *
+ * When both are present and disagree, neither is used. A file naming one Safe checked against
+ * another reports a diff for a Safe nobody reviewed, and silently preferring either source hides
+ * which one the reviewer was reading.
+ */
+function resolveSafeAddress(
+  fromFile: Address | null,
+  fromArgument: Address | undefined,
+): Address {
+  if (fromFile !== null && fromArgument !== undefined && !isAddressEqual(fromFile, fromArgument)) {
+    throw new InputError(
+      'the file and the --safe argument name different Safes.\n' +
+        `  meta.createdFromSafeAddress: ${fromFile}\n` +
+        `  --safe:                      ${fromArgument}`,
+    );
   }
 
-  return {
-    to: transaction.to,
-    value: transaction.value,
-    data,
-    operation: options.operation,
-    safeAddress: file.safeAddress,
-    chainId: file.chainId,
-  };
+  const safeAddress = fromFile ?? fromArgument;
+  if (safeAddress === undefined) {
+    throw new InputError(
+      "the file declares no 'meta.createdFromSafeAddress' and no --safe was supplied; this tool " +
+        'checks a transaction against a particular Safe, so one of the two must name it',
+    );
+  }
+  return safeAddress;
 }
 
 /**

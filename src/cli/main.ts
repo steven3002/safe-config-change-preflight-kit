@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 import { InputError } from '../input/errors.js';
 import { loadSafeTransaction } from '../input/tx-builder.js';
-import { Operation, type SafeTransaction } from '../input/transaction.js';
+import { Operation } from '../safe/transaction-parameters.js';
+import type { SafeTransaction } from '../input/transaction.js';
 import { USAGE_ERROR_EXIT_CODE } from './exit-codes.js';
 import { parseArguments, USAGE, UsageError } from './args.js';
 
@@ -17,6 +18,7 @@ async function main(argv: readonly string[]): Promise<number> {
 
   const transaction = await loadSafeTransaction(command.filePath, {
     operation: command.operation,
+    safeAddress: command.safeAddress,
   });
   process.stdout.write(render(transaction));
   return 0;

@@ -22,7 +22,11 @@ export interface BatchTransaction {
 
 export interface BatchFile {
   readonly chainId: number;
-  readonly safeAddress: Address;
+  /**
+   * `meta.createdFromSafeAddress` when the file carries it. It is optional in Safe's own `BatchFile`
+   * type and absent from roughly one export in fourteen, so the caller supplies it otherwise.
+   */
+  readonly safeAddress: Address | null;
   readonly transactions: readonly BatchTransaction[];
 }
 
@@ -35,11 +39,11 @@ export function parseBatchFile(raw: unknown): BatchFile {
     'the file does not look like a Safe Transaction Builder export',
   );
 
-  const safeAddress = readAddress(
-    meta['createdFromSafeAddress'],
-    "meta.createdFromSafeAddress",
-    'this tool checks a transaction against the Safe that produced it, so the file must name that Safe',
-  );
+  const declaredSafe = meta['createdFromSafeAddress'];
+  const safeAddress =
+    declaredSafe === undefined || declaredSafe === null || declaredSafe === ''
+      ? null
+      : readAddress(declaredSafe, 'meta.createdFromSafeAddress');
 
   const transactions = file['transactions'];
   if (!Array.isArray(transactions)) {
@@ -165,9 +169,9 @@ function readInputValues(raw: unknown, index: number): Readonly<Record<string, u
   return asRecord(raw, `transactions[${index}].contractInputsValues`);
 }
 
-function readAddress(raw: unknown, path: string, why?: string): Address {
+function readAddress(raw: unknown, path: string): Address {
   if (typeof raw !== 'string' || raw === '') {
-    throw new InputError(why === undefined ? `${path} is missing` : `${path} is missing: ${why}`);
+    throw new InputError(`${path} is missing`);
   }
   if (!isAddress(raw.trim())) {
     throw new InputError(`${path} is not a valid address or its checksum does not match: '${raw}'`);
