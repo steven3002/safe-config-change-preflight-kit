@@ -1,12 +1,10 @@
 #!/usr/bin/env node
-import { InputError } from '../input/errors.js';
-import { loadSafeTransaction } from '../input/tx-builder.js';
-import { Operation } from '../safe/transaction-parameters.js';
-import type { SafeTransaction } from '../input/transaction.js';
-import { USAGE_ERROR_EXIT_CODE } from './exit-codes.js';
+import { runCheck } from '../check/run-check.js';
+import type { Outcome } from '../check/outcome.js';
+import { exitCodeFor, USAGE_ERROR_EXIT_CODE } from './exit-codes.js';
 import { parseArguments, USAGE, UsageError } from './args.js';
 
-/** Entry point: wires argv to the check pipeline. */
+/** Entry point: wires argv to the check pipeline and turns its outcome into an exit code. */
 
 async function main(argv: readonly string[]): Promise<number> {
   const command = parseArguments(argv);
@@ -16,34 +14,42 @@ async function main(argv: readonly string[]): Promise<number> {
     return 0;
   }
 
-  const transaction = await loadSafeTransaction(command.filePath, {
+  const outcome = await runCheck({
+    filePath: command.filePath,
     operation: command.operation,
     safeAddress: command.safeAddress,
+    mode: command.mode,
+    policyPath: command.policyPath,
   });
-  process.stdout.write(render(transaction));
-  return 0;
+
+  process.stdout.write(render(outcome));
+  return exitCodeFor(outcome.verdict);
 }
 
-function render(transaction: SafeTransaction): string {
-  const rows: [string, string][] = [
-    ['safe', transaction.safeAddress],
-    ['chainId', String(transaction.chainId)],
-    ['to', transaction.to],
-    ['value', `${transaction.value} wei`],
-    ['operation', transaction.operation === Operation.DelegateCall ? 'delegatecall (1)' : 'call (0)'],
-    ['data', transaction.data],
-  ];
-  const width = Math.max(...rows.map(([label]) => label.length));
-  return rows.map(([label, value]) => `${label.padEnd(width)}  ${value}\n`).join('');
+function render(outcome: Outcome): string {
+  const lines = [`${outcome.verdict}  (${outcome.mode} mode)`];
+
+  if (outcome.verdict === 'INCONCLUSIVE') {
+    lines.push(`  the Safe was not measured: ${outcome.reason}`);
+    return `${lines.join('\n')}\n`;
+  }
+
+  if (outcome.nonceOnly) {
+    lines.push(
+      '  the transaction executed and left no protected state behind; state written and reverted',
+      '  within one transaction leaves no trace, so this is not proof that it is safe',
+    );
+  }
+  for (const finding of outcome.findings) {
+    lines.push(`  ${finding.field}: ${String(finding.before)} -> ${String(finding.after)}`);
+    if (finding.detail !== undefined) lines.push(`    ${finding.detail}`);
+  }
+  return `${lines.join('\n')}\n`;
 }
 
 const exitCode = await main(process.argv.slice(2)).catch((error: unknown) => {
   if (error instanceof UsageError) {
     process.stderr.write(`${error.message}\n\n${USAGE}`);
-    return USAGE_ERROR_EXIT_CODE;
-  }
-  if (error instanceof InputError) {
-    process.stderr.write(`${error.message}\n`);
     return USAGE_ERROR_EXIT_CODE;
   }
   throw error;

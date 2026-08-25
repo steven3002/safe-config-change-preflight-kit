@@ -1,5 +1,6 @@
 import { parseArgs } from 'node:util';
 import { getAddress, isAddress, type Address } from 'viem';
+import type { ExecutionMode } from '../execution/running-safe.js';
 import { Operation } from '../safe/transaction-parameters.js';
 
 /** Parse and validate command-line arguments into a command the entry point can run. */
@@ -14,6 +15,9 @@ export interface CheckCommand {
   readonly operation: Operation;
   /** Supplied when the file does not declare `meta.createdFromSafeAddress`, which is optional. */
   readonly safeAddress: Address | undefined;
+  readonly mode: ExecutionMode;
+  /** A policy file to apply; the built-in default policy applies when none is named. */
+  readonly policyPath: string | undefined;
 }
 
 export interface HelpCommand {
@@ -30,6 +34,13 @@ Usage:
 Options:
   --safe <address>                 The Safe to check against. Required only when the file omits
                                    meta.createdFromSafeAddress, which Safe's own format allows.
+  --mode <fork|local>              Where to run the transaction. fork forks a live chain at a
+                                   pinned block and measures the Safe the file names; local
+                                   deploys a fresh Safe v1.4.1 and measures that. Defaults to
+                                   fork. Fork mode needs an archive-capable JSON-RPC endpoint in
+                                   SAFE_STATEDIFF_RPC_URL.
+  --policy <safe-policy.yml>       Dispositions per protected field. Defaults to the built-in
+                                   policy, under which a singleton or owner change fails.
   --operation <call|delegatecall>  Call semantics to execute the transaction with.
                                    Defaults to call. The Transaction Builder format has no field
                                    for this, so a delegatecall must be declared here. A file
@@ -47,6 +58,8 @@ export function parseArguments(argv: readonly string[]): Command {
   let values: {
     operation?: string | undefined;
     safe?: string | undefined;
+    mode?: string | undefined;
+    policy?: string | undefined;
     help?: boolean | undefined;
   };
   let positionals: string[];
@@ -59,6 +72,8 @@ export function parseArguments(argv: readonly string[]): Command {
       options: {
         operation: { type: 'string' },
         safe: { type: 'string' },
+        mode: { type: 'string' },
+        policy: { type: 'string' },
         help: { type: 'boolean', short: 'h' },
       },
     }));
@@ -85,6 +100,8 @@ export function parseArguments(argv: readonly string[]): Command {
     filePath: rest[0] as string,
     operation: readOperation(values.operation),
     safeAddress: readSafeAddress(values.safe),
+    mode: readMode(values.mode),
+    policyPath: values.policy,
   };
 }
 
@@ -97,6 +114,17 @@ function readSafeAddress(raw: string | undefined): Address | undefined {
     );
   }
   return getAddress(trimmed);
+}
+
+const MODES: Readonly<Record<string, ExecutionMode>> = { fork: 'fork', local: 'local' };
+
+function readMode(raw: string | undefined): ExecutionMode {
+  if (raw === undefined) return 'fork';
+  const mode = MODES[raw.toLowerCase()];
+  if (mode === undefined) {
+    throw new UsageError(`--mode must be fork or local, received '${raw}'`);
+  }
+  return mode;
 }
 
 function readOperation(raw: string | undefined): Operation {

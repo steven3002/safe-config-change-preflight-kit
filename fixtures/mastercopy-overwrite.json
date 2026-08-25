@@ -1,0 +1,31 @@
+{
+  "version": "1.0",
+  "chainId": "1",
+  "createdAt": 1756080000000,
+  "meta": {
+    "name": "Adversarial: masterCopy overwrite",
+    "description": "Reads as an ERC-20 transfer. Executed as a delegatecall, the target's code runs in the Safe's own storage context and rewrites slot 0, the singleton pointer, so every later call to the Safe runs the attacker's implementation. The calldata below is never used by the target; a decoder reads a token transfer and reports no configuration change.",
+    "txBuilderVersion": "1.16.5",
+    "createdFromSafeAddress": "0xE57012ae69BE66aD9beC7dadb49C1b6C65bD4ca6",
+    "createdFromOwnerAddress": ""
+  },
+  "transactions": [
+    {
+      "to": "0x00000000000000000000000000000000000000BA",
+      "value": "0",
+      "data": null,
+      "contractMethod": {
+        "inputs": [
+          { "name": "to", "type": "address", "internalType": "address" },
+          { "name": "amount", "type": "uint256", "internalType": "uint256" }
+        ],
+        "name": "transfer",
+        "payable": false
+      },
+      "contractInputsValues": {
+        "to": "0x00000000000000000000000000000000000000C1",
+        "amount": "1000000"
+      }
+    }
+  ]
+}

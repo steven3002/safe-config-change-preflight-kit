@@ -9,6 +9,8 @@ test('check takes a file path and defaults to a call', () => {
     filePath: 'tx.json',
     operation: Operation.Call,
     safeAddress: undefined,
+    mode: 'fork',
+    policyPath: undefined,
   });
 });
 
@@ -18,6 +20,8 @@ test('--operation selects delegatecall', () => {
     filePath: 'tx.json',
     operation: Operation.DelegateCall,
     safeAddress: undefined,
+    mode: 'fork',
+    policyPath: undefined,
   });
 });
 
@@ -39,6 +43,7 @@ test('bad usage is rejected with a message that names the problem', () => {
       'checksum does not match',
     ],
     [['check', 'tx.json', '--rpc-url', 'http://x'], 'Unknown option'],
+    [['check', 'tx.json', '--mode', 'sideways'], '--mode must be fork or local'],
   ];
   for (const [argv, fragment] of cases) {
     assert.throws(
@@ -57,6 +62,8 @@ test('--safe supplies the Safe the file may omit, canonicalised', () => {
       filePath: 'tx.json',
       operation: Operation.Call,
       safeAddress: '0xE57012ae69BE66aD9beC7dadb49C1b6C65bD4ca6',
+      mode: 'fork',
+      policyPath: undefined,
     },
   );
 });
