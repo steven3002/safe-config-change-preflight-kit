@@ -3,7 +3,7 @@
  *
  * Transaction Builder encodes tuple parameter values as embedded JSON, and those tuples routinely
  * carry `uint256` amounts. `JSON.parse` would silently round any literal above 2^53 to the nearest
- * double ,  `5927159439709870321853251` becomes `5927159439709871000000000` ,  and the resulting
+ * double,   `5927159439709870321853251` becomes `5927159439709871000000000`,   and the resulting
  * calldata would encode an amount nobody wrote. Keeping numbers as text defers the conversion to
  * the Solidity type, where it can be done exactly.
  */

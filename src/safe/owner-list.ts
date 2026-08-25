@@ -1,4 +1,5 @@
 import { getAddress, isAddressEqual, type Address } from 'viem';
+import { SENTINEL_ENTRY } from './sentinel-list.js';
 
 /**
  * Reconstruct a Safe's owner set by walking the sentinel-terminated linked list held in the
@@ -10,7 +11,7 @@ import { getAddress, isAddressEqual, type Address } from 'viem';
  */
 
 /** `SENTINEL_OWNERS` in `contracts/base/OwnerManager.sol`: the list's head and its terminator. */
-export const SENTINEL_OWNER: Address = '0x0000000000000000000000000000000000000001';
+export const SENTINEL_OWNER: Address = SENTINEL_ENTRY;
 
 const ZERO_ADDRESS: Address = '0x0000000000000000000000000000000000000000';
 
@@ -21,7 +22,7 @@ const ZERO_ADDRESS: Address = '0x0000000000000000000000000000000000000000';
  */
 export const MAX_OWNER_LIST_LENGTH = 1024;
 
-/** Resolves `owners[entry]` ,  the address the linked list points to next. */
+/** Resolves `owners[entry]`,  the address the linked list points to next. */
 export type OwnerLinkReader = (entry: Address) => Promise<Address>;
 
 /**

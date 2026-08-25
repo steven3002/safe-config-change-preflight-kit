@@ -3,7 +3,7 @@
  *
  * Both are configuration. Naming a provider in the code would tie every run to one endpoint's
  * availability and rate limits, and leaving the block unpinned would make two runs of the same
- * input produce different baselines ,  which is the whole value of the tool as a merge gate.
+ * input produce different baselines,   which is the whole value of the tool as a merge gate.
  */
 
 export const RPC_URL_VARIABLE = 'SAFE_STATEDIFF_RPC_URL';
@@ -11,7 +11,7 @@ export const FORK_BLOCK_VARIABLE = 'SAFE_STATEDIFF_FORK_BLOCK';
 
 /**
  * The default pin: a mainnet block observed in this repository's own verification runs. It is a
- * default rather than a constant of the system ,  a caller checking a Safe whose relevant state
+ * default rather than a constant of the system,   a caller checking a Safe whose relevant state
  * changed later sets the variable to a newer block.
  */
 export const DEFAULT_FORK_BLOCK_NUMBER = 25_824_756n;

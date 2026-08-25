@@ -104,8 +104,8 @@ interface Submission {
  *
  * A mined transaction that reverted carries no reason on its receipt, so the submission that failed
  * would otherwise be reported as an unexplained revert. Calling first costs one request and puts
- * the Safe's own error — `GS013` for an inner call that failed, `GS02x` for a signature the Safe
- * rejected — into the reason a reviewer reads. It returns `undefined` when there is nothing to
+ * the Safe's own error,  `GS013` for an inner call that failed, `GS02x` for a signature the Safe
+ * rejected,  into the reason a reviewer reads. It returns `undefined` when there is nothing to
  * report and the transaction should be sent.
  */
 async function simulate(
@@ -121,7 +121,7 @@ async function simulate(
       gas: submission.gas,
     }));
   } catch (cause) {
-    return classify(cause, 'the transaction could not be executed against the Safe');
+    return classify(cause, 'the transaction could not be executed against the Safe', submission.gas);
   }
 
   if (returned === undefined) {
@@ -154,7 +154,7 @@ async function send(clients: AnvilClients, submission: Submission): Promise<Exec
       gas: submission.gas,
     });
   } catch (cause) {
-    return classify(cause, 'the transaction could not be submitted');
+    return classify(cause, 'the transaction could not be submitted', submission.gas);
   }
 
   try {
@@ -174,7 +174,11 @@ async function send(clients: AnvilClients, submission: Submission): Promise<Exec
         'call had succeeded moments earlier',
     );
   } catch (cause) {
-    return classify(cause, `the receipt for transaction ${transactionHash} could not be read`);
+    return classify(
+      cause,
+      `the receipt for transaction ${transactionHash} could not be read`,
+      submission.gas,
+    );
   }
 }
 
@@ -211,17 +215,46 @@ const UNREACHABLE_NODE_PATTERN = /fetch failed|ECONNREFUSED|ECONNRESET|socket/iu
 const OUT_OF_GAS_PATTERN = /out\s?of\s?gas|intrinsic gas too low|gas required exceeds/iu;
 
 /**
+ * A transaction whose calldata is too large to fit in a block is refused by the node *before*
+ * execution, and is refused for the opposite reason to an exhausted gas limit: its intrinsic cost
+ * is too high, not too low. Nothing enters the EVM and the Safe never sees the transaction, so
+ * reporting it as a revert tells a reviewer their Safe rejected the batch when the truth is that
+ * the batch does not fit in a block,  false in the reassuring direction.
+ *
+ * Anvil 1.7.1 spells the detail `intrinsic gas too high -- GasFloorMoreThanGasLimit` when the
+ * EIP-7623 calldata floor is the binding constraint and `-- CallGasCostMoreThanGasLimit` when the
+ * per-byte call cost is; the shared prefix is what this matches on.
+ *
+ * It is the EIP-7623 calldata floor of 40 gas per non-zero byte that is measured against the limit,
+ * so the wall arrives near 750,000 bytes of payload rather than the 1,870,000 a 16-gas-per-byte
+ * estimate predicts. A MultiSend batch of roughly 5,000 inner calls reaches it, and MultiSend
+ * batches are this tool's primary input.
+ */
+const TOO_LARGE_FOR_BLOCK_PATTERN =
+  /intrinsic gas too high|GasFloorMoreThanGasLimit|exceeds the limit allowed for the block/iu;
+
+/**
  * Decide which of the three failures an error is.
  *
  * Transport is checked first and by type rather than by message: a node that stopped answering
  * produces text that can say anything, and calling that a revert would report a fact about the
  * transaction that was never observed.
  */
-function classify(cause: unknown, context: string): FailedExecution {
+function classify(cause: unknown, context: string, gas: bigint): FailedExecution {
   const description = describeFailure(cause);
 
   if (isTransportError(cause)) {
     return failure('transport', `${context}: the node did not answer (${description})`);
+  }
+  if (TOO_LARGE_FOR_BLOCK_PATTERN.test(description)) {
+    return failure(
+      'out-of-gas',
+      `${context}: it does not fit in a block. The node measured its intrinsic gas cost above the ` +
+      `submission's gas limit of ${gas},
+        the chain's block gas limit unless one was set,
+        and ` +
+      `refused it before execution, so the Safe never saw it (${description})`,
+    );
   }
   if (OUT_OF_GAS_PATTERN.test(description)) {
     return failure('out-of-gas', `${context}: ${description}`);

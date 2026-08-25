@@ -30,7 +30,7 @@ import type { SafeTxParameters } from '../../src/safe/transaction-parameters.js'
 const SAFE_ABI = parseAbi(['function changeThreshold(uint256 threshold)']);
 const RECIPIENT: Address = '0x00000000000000000000000000000000000000c1';
 const REVERTING_CONTRACT: Address = '0x00000000000000000000000000000000000000c2';
-/** `PUSH1 0 PUSH1 0 REVERT` — the smallest contract that always fails. */
+/** `PUSH1 0 PUSH1 0 REVERT`,  the smallest contract that always fails. */
 const ALWAYS_REVERT_RUNTIME: Hex = '0x60006000fd';
 
 interface Attempt {
@@ -39,7 +39,7 @@ interface Attempt {
   readonly writtenSlots: readonly Hex[];
 }
 
-/** Cross-check the hash, approve it for the threshold, and submit — sections 3.3, 3.5 and 3.6. */
+/** Cross-check the hash, approve it for the threshold, and submit,  sections 3.3, 3.5 and 3.6. */
 async function run(
   session: SafeSession,
   transaction: SafeTxParameters,
@@ -168,6 +168,86 @@ test('a submission that cannot afford its gas limit is reported as out of gas', 
 
     assert.equal(result.status, 'failed');
     assert.equal(result.failure, 'out-of-gas');
+  } finally {
+    await session.stop();
+  }
+});
+
+/**
+ * The negative control for the mechanism the whole tool rests on.
+ *
+ * Every other test here shows the pre-validated blob accepted *with* approvals in place, and none
+ * of those separates "the approvals worked" from "the Safe would have taken this anyway". This one
+ * submits the identical blob twice, differing only in whether the slot-8 entries exist.
+ */
+test('the identical blob is refused with GS025 until the approvals are written', async () => {
+  const session = await startLocalSafe();
+  try {
+    const { safe } = session;
+    const clients = createAnvilClients(safe.rpcUrl);
+    const transaction = changeThreshold(safe.safeAddress, 1n);
+
+    const crossCheck = await crossCheckTransactionHash(clients.reader, {
+      safeAddress: safe.safeAddress,
+      chainId: safe.chainId,
+      transaction,
+    });
+    assert.equal(crossCheck.status, 'matched', describe(crossCheck));
+
+    const signers = [...safe.owners]
+      .sort((left, right) => (left.toLowerCase() < right.toLowerCase() ? -1 : 1))
+      .slice(0, safe.threshold);
+
+    const unapproved = await executeSafeTransaction(clients, {
+      safeAddress: safe.safeAddress,
+      transaction,
+      signers,
+    });
+    assert.equal(unapproved.status, 'failed', describe(unapproved));
+    assert.match(unapproved.reason, /GS025/u);
+    assert.equal(await readThreshold(clients.reader, safe.safeAddress), 2);
+
+    const approval = await approveTransactionHash(clients, {
+      safeAddress: safe.safeAddress,
+      owners: safe.owners,
+      threshold: safe.threshold,
+      safeTxHash: crossCheck.safeTxHash,
+    });
+    assert.deepEqual(approval.signers, signers);
+
+    const approved = await executeSafeTransaction(clients, {
+      safeAddress: safe.safeAddress,
+      transaction,
+      signers,
+    });
+    assert.equal(approved.status, 'executed', describe(approved));
+  } finally {
+    await session.stop();
+  }
+});
+
+/**
+ * A transaction whose calldata floor exceeds the gas limit is refused by the node before execution,
+ * for the opposite reason to an exhausted limit: its intrinsic cost is too high, not too low.
+ * Nothing enters the EVM and the Safe never sees it, so reporting a revert would tell a reviewer
+ * their Safe rejected the batch when the truth is that the batch does not fit in a block.
+ */
+test('a transaction whose calldata floor exceeds the gas limit is out of gas, not reverted', async () => {
+  const session = await startLocalSafe();
+  try {
+    const oversized = withoutGasRefund({
+      to: RECIPIENT,
+      value: 0n,
+      data: `0x${'ff'.repeat(20_000)}`,
+      operation: Operation.Call,
+    });
+
+    const { result } = await run(session, oversized, 200_000n);
+
+    assert.equal(result.status, 'failed', describe(result));
+    assert.equal(result.failure, 'out-of-gas', result.reason);
+    assert.match(result.reason, /does not fit in a block/u);
+    assert.match(result.reason, /gas limit of 200000/u);
   } finally {
     await session.stop();
   }

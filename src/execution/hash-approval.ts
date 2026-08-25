@@ -7,7 +7,7 @@ import type { AnvilClients } from './anvil-client.js';
  * Satisfy a Safe's signature check by writing `approvedHashes[owner][safeTxHash] = 1` at slot 8 for
  * as many owners as the threshold demands.
  *
- * The obvious alternative — writing `threshold := 1` at slot 4 so that one signature suffices — is
+ * The obvious alternative,  writing `threshold := 1` at slot 4 so that one signature suffices,  is
  * the one thing this tool must never do. Slot 4 is the state it exists to measure: with the
  * threshold overwritten, a transaction lowering a threshold of four to one reports no change at
  * all, and one raising it to two reports an increase. The rule that catches a threshold reduction
@@ -71,8 +71,8 @@ export async function approveTransactionHash(
 }
 
 /**
- * Take the lowest `threshold` owners by address. Which owners are chosen carries no meaning — the
- * Safe requires a count, not a particular set — so the deterministic choice is the useful one: two
+ * Take the lowest `threshold` owners by address. Which owners are chosen carries no meaning,  the
+ * Safe requires a count, not a particular set,  so the deterministic choice is the useful one: two
  * runs of the same input write the same slots and produce the same exclusion list.
  */
 function selectSigners(request: HashApprovalRequest): readonly Address[] {

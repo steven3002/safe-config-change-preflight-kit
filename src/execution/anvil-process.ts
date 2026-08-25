@@ -78,7 +78,7 @@ interface Supervisor {
 }
 
 /**
- * Track the child's output and lifetime, and guarantee it is killed ,  including when this process
+ * Track the child's output and lifetime, and guarantee it is killed,   including when this process
  * exits before anyone calls `stop`.
  */
 function superviseProcess(child: AnvilChild): Supervisor {

@@ -22,7 +22,7 @@ export interface HelpCommand {
 
 export type Command = CheckCommand | HelpCommand;
 
-export const USAGE = `safe-statediff ,  check a Safe transaction file against the Safe's protected state
+export const USAGE = `safe-statediff,   check a Safe transaction file against the Safe's protected state
 
 Usage:
   safe-statediff check <transaction.json> [options]

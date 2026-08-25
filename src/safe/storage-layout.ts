@@ -5,7 +5,7 @@ import type { Hex } from 'viem';
  * slots held at hashed addresses outside that sequence.
  *
  * Every value here is read from Safe's own source rather than inferred. Getting one wrong does not
- * crash anything ,  it produces a plausible slot that quietly makes every reported diff wrong.
+ * crash anything,   it produces a plausible slot that quietly makes every reported diff wrong.
  */
 
 /**
@@ -17,9 +17,9 @@ import type { Hex } from 'viem';
 export const SafeStorageSlot = {
   /** The implementation the proxy delegatecalls into; the slot the Bybit attack overwrote. */
   singleton: 0n,
-  /** `mapping(address => address)` ,  the sentinel-terminated module linked list. */
+  /** `mapping(address => address)`,   the sentinel-terminated module linked list. */
   modules: 1n,
-  /** `mapping(address => address)` ,  the sentinel-terminated owner linked list. */
+  /** `mapping(address => address)`,   the sentinel-terminated owner linked list. */
   owners: 2n,
   ownerCount: 3n,
   threshold: 4n,
@@ -31,7 +31,7 @@ export const SafeStorageSlot = {
   deprecatedDomainSeparator: 6n,
   /** `mapping(bytes32 => uint256)`. */
   signedMessages: 7n,
-  /** `mapping(address => mapping(bytes32 => uint256))` ,  how this tool satisfies signatures. */
+  /** `mapping(address => mapping(bytes32 => uint256))`,   how this tool satisfies signatures. */
   approvedHashes: 8n,
 } as const;
 

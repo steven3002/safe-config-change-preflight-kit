@@ -12,7 +12,7 @@ import { Operation } from '../../src/safe/transaction-parameters.js';
  * (`BIPs/00batched/2023/2023-W45/1-0x10A19e7eE7d7F8a52822f6817de8ea18204F2e4f.json`). Roughly half
  * of that repository's exports carry more than one transaction, so this shape is the common case
  * rather than an edge case, and the file carries the per-transaction `meta` annotations that the
- * repository's own tooling adds ,  fields Safe's format does not define.
+ * repository's own tooling adds,   fields Safe's format does not define.
  *
  * Tests execute from `dist/`, so the fixture is read from the source tree rather than from a path
  * relative to this compiled file's directory.
@@ -46,7 +46,7 @@ test('a batched export from the real corpus becomes one MultiSendCallOnly delega
   );
 });
 
-/** `cast sig "transfer(address,uint256)"` ,  the selector the Bybit payload presented. */
+/** `cast sig "transfer(address,uint256)"`,   the selector the Bybit payload presented. */
 test('the batch carries an inner transfer, which no Safe selector would reveal', () => {
   const transaction = parseSafeTransaction(FIXTURE, { operation: Operation.Call });
   const { args } = decodeFunctionData({ abi: MULTI_SEND_ABI, data: transaction.data });

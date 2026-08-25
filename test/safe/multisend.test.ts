@@ -105,7 +105,7 @@ test('the resolved address matches the recorded deployment for 1.3.0 and 1.4.1',
 
 /**
  * Chains that enforce EIP-155 replay protection carry a different deployment, so the package's
- * `defaultAddress` ,  an alias for the chain-1 address ,  is wrong for them.
+ * `defaultAddress`,   an alias for the chain-1 address,   is wrong for them.
  */
 test('the address is taken per chain, not from the deployment default', () => {
   assert.equal(

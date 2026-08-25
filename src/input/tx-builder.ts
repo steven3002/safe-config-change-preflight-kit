@@ -89,7 +89,7 @@ function normalize(file: BatchFile, options: LoadOptions): SafeTransaction {
  *
  * `operation` is forced to delegatecall regardless of what the caller asked for, because a plain
  * call would run the batch in MultiSend's own context rather than the Safe's. `value` is zero
- * because a delegatecall carries none ,  the EVM ignores the field entirely ,  and each inner call
+ * because a delegatecall carries none,   the EVM ignores the field entirely,   and each inner call
  * draws its value from the Safe's own balance.
  */
 function wrapBatch(
@@ -157,8 +157,8 @@ function resolveSafeAddress(
  *
  * When a file carries both, they are encoded and compared rather than one being preferred. A file
  * whose readable declaration disagrees with the bytes that would actually execute is the shape a
- * malicious pull request takes ,  a reviewer reads the method name and arguments while the Safe
- * runs the `data` field ,  so a disagreement is rejected outright.
+ * malicious pull request takes,   a reviewer reads the method name and arguments while the Safe
+ * runs the `data` field,   so a disagreement is rejected outright.
  */
 function resolveCalldata(transaction: BatchTransaction): Hex {
   const declared =

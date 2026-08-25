@@ -29,7 +29,7 @@ export const MULTI_SEND_ABI = parseAbi(['function multiSend(bytes transactions) 
 /**
  * The MultiSendCallOnly release this tool resolves by default.
  *
- * The library is standalone ,  a Safe delegatecalls into it and it touches no Safe storage ,  so its
+ * The library is standalone,   a Safe delegatecalls into it and it touches no Safe storage,   so its
  * release does not have to match the Safe's. 1.3.0 is the default because it is the version
  * deployed on the widest set of chains, and because the Safe this tool's fork mode targets is
  * itself v1.3.0.

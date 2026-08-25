@@ -1,8 +1,8 @@
 import type { Address, Hex } from 'viem';
 
 /**
- * Safe's transaction parameter tuple ,  the arguments `execTransaction` takes and the fields the
- * EIP-712 `SafeTx` struct hashes ,  together with Safe's `Enum.Operation` values.
+ * Safe's transaction parameter tuple,   the arguments `execTransaction` takes and the fields the
+ * EIP-712 `SafeTx` struct hashes,   together with Safe's `Enum.Operation` values.
  */
 
 /**
