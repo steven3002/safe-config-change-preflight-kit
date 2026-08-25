@@ -53,6 +53,14 @@ export async function readThreshold(reader: PublicClient, safeAddress: Address):
   return Number(threshold);
 }
 
+/**
+ * Slot 5, `nonce`. Every successful `execTransaction` increments it, so it is the oracle that says
+ * a transaction ran; it is never on its own a finding about the transaction.
+ */
+export async function readNonce(reader: PublicClient, safeAddress: Address): Promise<bigint> {
+  return hexToBigInt(await readWord(reader, safeAddress, fixedSlot(SafeStorageSlot.nonce)));
+}
+
 /** Walk the owner linked list held in the `owners` mapping, using slot 3 as its length. */
 export async function readOwners(
   reader: PublicClient,
