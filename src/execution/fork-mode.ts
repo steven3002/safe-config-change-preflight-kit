@@ -21,8 +21,17 @@ export interface ForkModeOptions {
   readonly endpoint?: ForkEndpoint | undefined;
 }
 
-const MAX_START_ATTEMPTS = 3;
-const RETRY_DELAY_MS = 5000;
+/**
+ * A fork start reaches out to a public endpoint and is the one step here that fails for reasons
+ * that have nothing to do with the transaction under review: an endpoint that answers a single
+ * read may still refuse the burst a fork start makes, or rate-limit under repeated runs.
+ *
+ * The retry covers that step alone. Reading the Safe's state afterwards is not retried, because a
+ * chain that is up and a Safe that is not there is a settled answer, and spending two delays to
+ * repeat it would only make a clear failure slow.
+ */
+export const MAX_START_ATTEMPTS = 3;
+export const RETRY_DELAY_MS = 5000;
 
 export async function startForkedSafe(options: ForkModeOptions): Promise<SafeSession> {
   const endpoint = options.endpoint ?? resolveForkEndpoint();

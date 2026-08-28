@@ -1,57 +1,73 @@
+import { appendFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { join, dirname } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+/**
+ * Translate GitHub Action inputs into one CLI invocation and hand its result back to the workflow.
+ *
+ * This layer decides nothing. It maps inputs to flags, preserves the CLI's exit code so that a
+ * workflow gates on the same code a developer sees locally, and publishes the verdict as a step
+ * output for workflows that would rather branch than fail. The verdict is read back out of the
+ * report the CLI already produced, so the transaction is executed exactly once: running it twice to
+ * obtain a machine-readable copy would double the work and, in fork mode, the RPC traffic.
+ */
 
-const file = process.env.INPUT_FILE;
-const mode = process.env.INPUT_MODE;
-const safe = process.env.INPUT_SAFE;
-const policy = process.env.INPUT_POLICY;
-const operation = process.env.INPUT_OPERATION;
-const rpcUrl = process.env.INPUT_RPC_URL;
+const projectRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+const CLI = join(projectRoot, 'dist', 'src', 'cli', 'main.js');
 
-if (!file) {
-  console.error("Error: Input 'file' is required.");
+/** `Result: FAIL` in the human report, `"verdict": "FAIL"` in the JSON one. */
+const VERDICT = /(?:^Result:\s*|"verdict"\s*:\s*")(PASS|WARN|FAIL|INCONCLUSIVE)/mu;
+
+function input(name: string): string | undefined {
+  const value = process.env[`INPUT_${name}`];
+  return value === undefined || value.trim() === '' ? undefined : value.trim();
+}
+
+function fail(message: string): never {
+  process.stderr.write(`${message}\n`);
   process.exit(1);
 }
 
-const args: string[] = ['dist/src/cli/main.js', 'check', file];
-
-if (mode) {
-  args.push('--mode', mode);
-}
-if (safe) {
-  args.push('--safe', safe);
-}
-if (policy) {
-  args.push('--policy', policy);
-}
-if (operation) {
-  args.push('--operation', operation);
+const file = input('FILE');
+if (file === undefined) {
+  fail("safe-statediff: the 'file' input is required and was empty.");
 }
 
-const env: Record<string, string> = { ...process.env } as Record<string, string>;
-if (rpcUrl) {
-  env.SAFE_STATEDIFF_RPC_URL = rpcUrl;
+const args = [CLI, 'check', file];
+for (const [name, flag] of [
+  ['MODE', '--mode'],
+  ['SAFE', '--safe'],
+  ['POLICY', '--policy'],
+  ['OPERATION', '--operation'],
+  ['FORMAT', '--format'],
+] as const) {
+  const value = input(name);
+  if (value !== undefined) {
+    args.push(flag, value);
+  }
 }
 
-const cliPath = join(__dirname, '../../dist/src/cli/main.js');
-args[0] = cliPath;
+const rpcUrl = input('RPC_URL');
+const env = { ...process.env, ...(rpcUrl === undefined ? {} : { SAFE_STATEDIFF_RPC_URL: rpcUrl }) };
 
-const result = spawnSync('node', args, {
-  stdio: 'inherit',
-  env,
-});
-
-if (result.error) {
-  console.error(`Failed to spawn CLI: ${result.error.message}`);
-  process.exit(1);
+const result = spawnSync(process.execPath, args, { env, encoding: 'utf8' });
+if (result.error !== undefined) {
+  fail(`safe-statediff: could not run the check: ${result.error.message}`);
 }
 
-if (result.status !== null) {
-  process.exit(result.status);
-} else {
-  process.exit(1);
+process.stdout.write(result.stdout);
+process.stderr.write(result.stderr);
+
+/**
+ * A step output has to be written even when the check failed, because `FAIL` is a verdict the
+ * workflow may want to read rather than merely a non-zero exit.
+ */
+const githubOutput = process.env['GITHUB_OUTPUT'];
+if (githubOutput !== undefined && githubOutput !== '') {
+  const verdict = VERDICT.exec(result.stdout)?.[1] ?? 'INCONCLUSIVE';
+  appendFileSync(githubOutput, `verdict=${verdict}\n`);
 }
+
+/** A process killed by a signal reports a null status; that is a failure, not a pass. */
+process.exit(result.status ?? 1);

@@ -1,30 +1,60 @@
 name: 'Safe StateDiff Preflight'
 description: 'Executes a Safe transaction against a real Safe in Anvil and gates CI on the observed protected-state diff.'
+author: 'steven3002'
+
+branding:
+  icon: 'shield'
+  color: 'blue'
+
 inputs:
   file:
-    description: 'The path to the Safe Transaction Builder JSON file'
+    description: 'Path to the Safe Transaction Builder JSON file, relative to the workspace.'
     required: true
   mode:
-    description: 'Execution mode: fork or local'
+    description: 'Execution mode: fork (a pinned mainnet fork) or local (a freshly deployed Safe).'
     required: false
     default: 'fork'
   safe:
     description: 'The Safe to check against. Required only when the file omits meta.createdFromSafeAddress.'
     required: false
   policy:
-    description: 'A policy file to apply'
+    description: 'Path to a safe-policy.yml. The built-in default policy applies when omitted.'
     required: false
   operation:
-    description: 'Call semantics: call or delegatecall'
+    description: 'Call semantics: call or delegatecall. Batched files are always delegatecall.'
     required: false
     default: 'call'
   rpc-url:
-    description: 'Archive-capable JSON-RPC endpoint (required for fork mode)'
+    description: 'Archive-capable JSON-RPC endpoint. Required for fork mode.'
     required: false
+  format:
+    description: 'Report form: human or json.'
+    required: false
+    default: 'human'
+
+outputs:
+  verdict:
+    description: 'PASS, WARN, FAIL or INCONCLUSIVE.'
+    value: ${{ steps.check.outputs.verdict }}
+
 runs:
-  using: "composite"
+  using: 'composite'
   steps:
-    - name: Build and run Safe StateDiff
+    # The action lives in action/, so the project it runs is one directory up. Building here rather
+    # than in the caller's workspace keeps the check independent of whatever the caller has
+    # installed.
+    - name: Build safe-statediff
+      shell: bash
+      working-directory: ${{ github.action_path }}/..
+      run: |
+        npm ci
+        npm run build
+
+    # Run from the caller's workspace so that the file and policy inputs resolve as the caller
+    # wrote them. The verdict is published as an output and the exit code is preserved, so a
+    # workflow can either gate on the step failing or branch on the verdict.
+    - name: Check the transaction
+      id: check
       shell: bash
       env:
         INPUT_FILE: ${{ inputs.file }}
@@ -33,7 +63,5 @@ runs:
         INPUT_POLICY: ${{ inputs.policy }}
         INPUT_OPERATION: ${{ inputs.operation }}
         INPUT_RPC_URL: ${{ inputs.rpc-url }}
-      run: |
-        npm --prefix "${{ github.action_path }}" ci
-        npm --prefix "${{ github.action_path }}" run build
-        node "${{ github.action_path }}/dist/action/entrypoint.js"
+        INPUT_FORMAT: ${{ inputs.format }}
+      run: node "${{ github.action_path }}/../dist/action/entrypoint.js"

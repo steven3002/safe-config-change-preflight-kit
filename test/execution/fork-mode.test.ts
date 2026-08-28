@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createPublicClient, http, parseAbi, type Address, type Hex } from 'viem';
-import { startForkedSafe } from '../../src/execution/fork-mode.js';
+import { startForkedSafe, MAX_START_ATTEMPTS, RETRY_DELAY_MS } from '../../src/execution/fork-mode.js';
 import { RPC_URL_VARIABLE } from '../../src/execution/fork-config.js';
 import type { RunningSafe } from '../../src/execution/running-safe.js';
 import { fixedSlot, ownerLinkSlot } from '../../src/safe/slot-derivation.js';
@@ -117,26 +117,37 @@ test('two runs at the pinned block produce identical baselines', { skip }, async
   }
 });
 
-test('failure to read the Safe state fails immediately without retrying', { skip }, async () => {
-  const NON_SAFE_ADDRESS: Address = '0x0000000000000000000000000000000000000000';
-  const start = Date.now();
+/**
+ * The retry covers the fork start and nothing else.
+ *
+ * An address that holds no Safe is not a transient condition, and no number of attempts will make
+ * it one. Retrying it would spend three attempts and two delays to arrive at the same error, so
+ * the failure is raised once the chain is up and the state is read.
+ */
+test('a Safe that is not there fails at once rather than being retried', { skip }, async () => {
+  const NOT_A_SAFE: Address = '0x0000000000000000000000000000000000000000';
+  const startedAt = Date.now();
+
   await assert.rejects(
-    startForkedSafe({ safeAddress: NON_SAFE_ADDRESS }),
-    (err: Error) => {
-      // ContractFunctionExecutionError or similar from viem
-      return err.message.includes('ContractFunctionExecutionError') || err.message.includes('execution reverted') || err.name === 'ContractFunctionExecutionError';
-    }
+    startForkedSafe({ safeAddress: NOT_A_SAFE }),
+    /there is no contract at 0x0000000000000000000000000000000000000000/u,
   );
-  const duration = Date.now() - start;
-  assert.ok(duration < 5000, 'Expected to fail fast without 10s retry delay');
+
+  assert.ok(
+    Date.now() - startedAt < RETRY_DELAY_MS,
+    'the read failure was retried; only the fork start should be',
+  );
 });
 
-test('failure to start the fork retries', async () => {
+test('a fork start that cannot succeed is retried before it is given up on', async () => {
   const start = Date.now();
   const BAD_ENDPOINT = { rpcUrl: 'https://invalid.domain.that.does.not.exist', blockNumber: 1n };
   await assert.rejects(
     startForkedSafe({ safeAddress: FORK_SAFE, endpoint: BAD_ENDPOINT }),
   );
-  const duration = Date.now() - start;
-  assert.ok(duration >= 10000, 'Expected to retry twice with a 5s delay each (total > 10s)');
+  const elapsed = Date.now() - start;
+  assert.ok(
+    elapsed >= RETRY_DELAY_MS * (MAX_START_ATTEMPTS - 1),
+    `gave up after ${elapsed} ms, too soon to have waited between all ${MAX_START_ATTEMPTS} attempts`,
+  );
 });

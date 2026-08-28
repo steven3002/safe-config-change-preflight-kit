@@ -1,46 +1,61 @@
-name: Safe StateDiff Action
+name: Safe StateDiff
+
 on:
   push:
-    branches: [ "main" ]
+    branches: [main]
   pull_request:
 
 jobs:
-  test-fixtures:
+  fixtures:
+    name: ${{ matrix.name }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         include:
-          - name: "Benign Fixture (Local)"
-            file: "fixtures/benign.json"
-            mode: "local"
-            expected: "success"
-          - name: "Adversarial Fixture (Fork)"
-            file: "fixtures/change-threshold.json"
-            mode: "fork"
-            expected: "failure"
-    name: ${{ matrix.name }}
+          - name: Benign fixture, local mode
+            file: fixtures/benign.json
+            mode: local
+            expected: success
+          - name: Threshold reduction, fork mode
+            file: fixtures/change-threshold.json
+            mode: fork
+            expected: failure
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # The tool spawns anvil, which the runner image does not carry.
+      - uses: foundry-rs/foundry-toolchain@v1
         with:
           version: stable
 
-      - name: Run Safe StateDiff
-        id: run_preflight
-        uses: ./
+      # The failing fixture is expected to fail, so the step's own result is the measurement
+      # rather than the job's. Both outcomes are asserted below.
+      - name: Check the fixture
+        id: preflight
+        uses: ./action
         continue-on-error: true
         with:
           file: ${{ matrix.file }}
           mode: ${{ matrix.mode }}
-          rpc-url: 'https://eth.drpc.org'
+          rpc-url: ${{ secrets.SAFE_STATEDIFF_RPC_URL || 'https://eth.drpc.org' }}
 
-      - name: Assert Outcome
+      # A gate is only worth anything if it can tell the two apart, so assert both directions.
+      # Asserting here rather than letting the red fixture fail the job keeps a genuine breakage
+      # distinguishable from the failure this workflow exists to demonstrate.
+      - name: Assert the expected outcome
+        env:
+          ACTUAL: ${{ steps.preflight.outcome }}
+          EXPECTED: ${{ matrix.expected }}
+          VERDICT: ${{ steps.preflight.outputs.verdict }}
         run: |
-          if [ "${{ steps.run_preflight.outcome }}" != "${{ matrix.expected }}" ]; then
-            echo "Expected outcome ${{ matrix.expected }}, but got ${{ steps.run_preflight.outcome }}"
+          echo "verdict: ${VERDICT:-unknown}"
+          if [ "$ACTUAL" != "$EXPECTED" ]; then
+            echo "::error::expected the check to $EXPECTED but it reported $ACTUAL (verdict ${VERDICT:-unknown})"
             exit 1
           fi
-          echo "Outcome matched expected: ${{ matrix.expected }}"
+          echo "the check $ACTUAL as expected"
