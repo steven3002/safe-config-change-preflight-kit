@@ -14,9 +14,11 @@ jobs:
           - name: "Benign Fixture (Local)"
             file: "fixtures/benign.json"
             mode: "local"
+            expected: "success"
           - name: "Adversarial Fixture (Fork)"
             file: "fixtures/change-threshold.json"
             mode: "fork"
+            expected: "failure"
     name: ${{ matrix.name }}
     steps:
       - uses: actions/checkout@v4
@@ -27,8 +29,18 @@ jobs:
           version: stable
 
       - name: Run Safe StateDiff
+        id: run_preflight
         uses: ./
+        continue-on-error: true
         with:
           file: ${{ matrix.file }}
           mode: ${{ matrix.mode }}
           rpc-url: 'https://eth.drpc.org'
+
+      - name: Assert Outcome
+        run: |
+          if [ "${{ steps.run_preflight.outcome }}" != "${{ matrix.expected }}" ]; then
+            echo "Expected outcome ${{ matrix.expected }}, but got ${{ steps.run_preflight.outcome }}"
+            exit 1
+          fi
+          echo "Outcome matched expected: ${{ matrix.expected }}"

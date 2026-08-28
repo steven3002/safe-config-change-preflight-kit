@@ -14,7 +14,7 @@
   "scripts": {
     "build": "tsc --build",
     "clean": "tsc --build --clean",
-    "lint": "eslint src test eslint.config.js",
+    "lint": "eslint src test action eslint.config.js",
     "test": "npm run build && node --test dist/test"
   },
   "dependencies": {

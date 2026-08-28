@@ -29,39 +29,44 @@ export async function startForkedSafe(options: ForkModeOptions): Promise<SafeSes
   const safeAddress = getAddress(options.safeAddress);
 
   let lastCause: unknown;
+  let anvil: AnvilInstance | undefined;
 
   for (let attempt = 1; attempt <= MAX_START_ATTEMPTS; attempt++) {
-    let anvil: AnvilInstance | undefined;
     try {
       anvil = await startAnvil({
         forkUrl: endpoint.rpcUrl,
         forkBlockNumber: endpoint.blockNumber,
       });
-
-      const clients = createAnvilClients(anvil.rpcUrl);
-      const state = await readSafeState(clients.reader, safeAddress);
-
-      return {
-        safe: {
-          rpcUrl: anvil.rpcUrl,
-          safeAddress,
-          chainId: await clients.reader.getChainId(),
-          mode: 'fork',
-          threshold: state.threshold,
-          owners: state.owners,
-        },
-        stop: anvil.stop,
-      };
+      break;
     } catch (cause) {
       lastCause = cause;
-      if (anvil !== undefined) {
-        await anvil.stop();
-      }
       if (attempt < MAX_START_ATTEMPTS) {
         await delay(RETRY_DELAY_MS);
       }
     }
   }
 
-  throw lastCause;
+  if (anvil === undefined) {
+    throw lastCause;
+  }
+
+  try {
+    const clients = createAnvilClients(anvil.rpcUrl);
+    const state = await readSafeState(clients.reader, safeAddress);
+
+    return {
+      safe: {
+        rpcUrl: anvil.rpcUrl,
+        safeAddress,
+        chainId: await clients.reader.getChainId(),
+        mode: 'fork',
+        threshold: state.threshold,
+        owners: state.owners,
+      },
+      stop: anvil.stop,
+    };
+  } catch (cause) {
+    await anvil.stop();
+    throw cause;
+  }
 }

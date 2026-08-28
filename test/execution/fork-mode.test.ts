@@ -116,3 +116,27 @@ test('two runs at the pinned block produce identical baselines', { skip }, async
     await second.stop();
   }
 });
+
+test('failure to read the Safe state fails immediately without retrying', { skip }, async () => {
+  const NON_SAFE_ADDRESS: Address = '0x0000000000000000000000000000000000000000';
+  const start = Date.now();
+  await assert.rejects(
+    startForkedSafe({ safeAddress: NON_SAFE_ADDRESS }),
+    (err: Error) => {
+      // ContractFunctionExecutionError or similar from viem
+      return err.message.includes('ContractFunctionExecutionError') || err.message.includes('execution reverted') || err.name === 'ContractFunctionExecutionError';
+    }
+  );
+  const duration = Date.now() - start;
+  assert.ok(duration < 5000, 'Expected to fail fast without 10s retry delay');
+});
+
+test('failure to start the fork retries', async () => {
+  const start = Date.now();
+  const BAD_ENDPOINT = { rpcUrl: 'https://invalid.domain.that.does.not.exist', blockNumber: 1n };
+  await assert.rejects(
+    startForkedSafe({ safeAddress: FORK_SAFE, endpoint: BAD_ENDPOINT }),
+  );
+  const duration = Date.now() - start;
+  assert.ok(duration >= 10000, 'Expected to retry twice with a 5s delay each (total > 10s)');
+});
