@@ -1,0 +1,14 @@
+protected_state:
+  singleton: fail
+  owners: fail
+  owner_count: fail
+  threshold_decrease: fail
+  threshold_increase: warn
+  nonce: report
+  modules: warn
+  guard: warn
+  fallback_handler: warn
+  module_guard: warn
+  signed_messages: warn
+  approved_hashes: warn
+  unrecognised: fail

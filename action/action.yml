@@ -1,0 +1,39 @@
+name: 'Safe StateDiff Preflight'
+description: 'Executes a Safe transaction against a real Safe in Anvil and gates CI on the observed protected-state diff.'
+inputs:
+  file:
+    description: 'The path to the Safe Transaction Builder JSON file'
+    required: true
+  mode:
+    description: 'Execution mode: fork or local'
+    required: false
+    default: 'fork'
+  safe:
+    description: 'The Safe to check against. Required only when the file omits meta.createdFromSafeAddress.'
+    required: false
+  policy:
+    description: 'A policy file to apply'
+    required: false
+  operation:
+    description: 'Call semantics: call or delegatecall'
+    required: false
+    default: 'call'
+  rpc-url:
+    description: 'Archive-capable JSON-RPC endpoint (required for fork mode)'
+    required: false
+runs:
+  using: "composite"
+  steps:
+    - name: Build and run Safe StateDiff
+      shell: bash
+      env:
+        INPUT_FILE: ${{ inputs.file }}
+        INPUT_MODE: ${{ inputs.mode }}
+        INPUT_SAFE: ${{ inputs.safe }}
+        INPUT_POLICY: ${{ inputs.policy }}
+        INPUT_OPERATION: ${{ inputs.operation }}
+        INPUT_RPC_URL: ${{ inputs.rpc-url }}
+      run: |
+        npm --prefix "${{ github.action_path }}" ci
+        npm --prefix "${{ github.action_path }}" run build
+        node "${{ github.action_path }}/dist/action/entrypoint.js"

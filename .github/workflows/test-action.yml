@@ -1,0 +1,34 @@
+name: Safe StateDiff Action
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+
+jobs:
+  test-fixtures:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: "Benign Fixture (Local)"
+            file: "fixtures/benign.json"
+            mode: "local"
+          - name: "Adversarial Fixture (Fork)"
+            file: "fixtures/change-threshold.json"
+            mode: "fork"
+    name: ${{ matrix.name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+
+      - name: Run Safe StateDiff
+        uses: ./
+        with:
+          file: ${{ matrix.file }}
+          mode: ${{ matrix.mode }}
+          rpc-url: 'https://eth.drpc.org'
