@@ -66,7 +66,7 @@ export async function runCheck(request: CheckRequest): Promise<Outcome> {
     });
   } catch (cause) {
     if (!(cause instanceof InputError)) throw cause;
-    return inconclusive(mode, `the transaction file could not be read: ${cause.message}`);
+    return inconclusive(mode, `the transaction file could not be read: ${cause.message}`, request.safeAddress);
   }
 
   let policy: Policy;
@@ -74,7 +74,7 @@ export async function runCheck(request: CheckRequest): Promise<Outcome> {
     policy = request.policyPath === undefined ? DEFAULT_POLICY : await loadPolicy(request.policyPath);
   } catch (cause) {
     if (!(cause instanceof PolicyError)) throw cause;
-    return inconclusive(mode, `the policy could not be read: ${cause.message}`);
+    return inconclusive(mode, `the policy could not be read: ${cause.message}`, transaction.safeAddress);
   }
 
   let session: SafeSession;
@@ -84,6 +84,8 @@ export async function runCheck(request: CheckRequest): Promise<Outcome> {
     return inconclusive(
       mode,
       `no chain could be started to measure the Safe on: ${describeFailure(cause)}`,
+      transaction.safeAddress,
+      policy
     );
   }
 
@@ -114,6 +116,8 @@ export async function checkAgainstSafe(
         safe.mode,
         `the file declares chain ${input.transaction.chainId} but the fork is chain ` +
           `${safe.chainId}; the transaction would be checked against a Safe on a different chain`,
+        safe.safeAddress,
+        policy
       );
     }
 
@@ -127,7 +131,7 @@ export async function checkAgainstSafe(
       transaction,
     });
     if (crossCheck.status !== 'matched') {
-      return inconclusive(safe.mode, crossCheck.reason);
+      return inconclusive(safe.mode, crossCheck.reason, safe.safeAddress, policy);
     }
 
     if (
@@ -140,6 +144,8 @@ export async function checkAgainstSafe(
           `check ran against. A delegatecall to an address with no code succeeds and does ` +
           'nothing, so the transaction was not measured, and whatever code that address holds ' +
           'elsewhere is exactly what the check exists to observe',
+        safe.safeAddress,
+        policy
       );
     }
 
@@ -162,6 +168,8 @@ export async function checkAgainstSafe(
         safe.mode,
         `the transaction did not execute (${result.failure}), so the Safe's protected state was ` +
           `never measured after it: ${result.reason}`,
+        safe.safeAddress,
+        policy
       );
     }
 
@@ -183,9 +191,11 @@ export async function checkAgainstSafe(
       evaluateFindings(findings, policy),
       findings,
       isNonceOnlyDiff(findings),
+      safe.safeAddress,
+      policy
     );
   } catch (cause) {
-    return inconclusive(safe.mode, `the Safe could not be measured: ${describeFailure(cause)}`);
+    return inconclusive(safe.mode, `the Safe could not be measured: ${describeFailure(cause)}`, safe.safeAddress, policy);
   }
 }
 

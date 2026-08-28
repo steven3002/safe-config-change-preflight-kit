@@ -1,6 +1,8 @@
 import type { PolicyVerdict } from '../policy/evaluate.js';
 import type { ExecutionMode } from '../execution/running-safe.js';
 import type { Finding } from '../statediff/findings.js';
+import type { Address } from 'viem';
+import type { Policy } from '../policy/schema.js';
 
 /**
  * The result of one check, in a shape that cannot state "nothing changed" about a run that
@@ -18,6 +20,8 @@ export type Verdict = PolicyVerdict | 'INCONCLUSIVE';
 interface OutcomeBase {
   readonly mode: ExecutionMode;
   readonly findings: readonly Finding[];
+  readonly safeAddress: Address | undefined;
+  readonly policy: Policy | undefined;
 }
 
 export interface ConclusiveOutcome extends OutcomeBase {
@@ -45,8 +49,10 @@ export function conclusive(
   verdict: PolicyVerdict,
   findings: readonly Finding[],
   nonceOnly: boolean,
+  safeAddress?: Address,
+  policy?: Policy,
 ): ConclusiveOutcome {
-  return { mode, verdict, findings, nonceOnly };
+  return { mode, verdict, findings, nonceOnly, safeAddress, policy };
 }
 
 /**
@@ -54,9 +60,14 @@ export function conclusive(
  * function, because an inconclusive result whose explanation is missing is indistinguishable, to
  * the person reading it, from a tool that simply failed to say anything.
  */
-export function inconclusive(mode: ExecutionMode, reason: string): InconclusiveOutcome {
+export function inconclusive(
+  mode: ExecutionMode,
+  reason: string,
+  safeAddress?: Address,
+  policy?: Policy,
+): InconclusiveOutcome {
   if (reason.trim() === '') {
     throw new Error('an inconclusive outcome must state why the Safe could not be measured');
   }
-  return { mode, verdict: 'INCONCLUSIVE', reason, findings: [], nonceOnly: false };
+  return { mode, verdict: 'INCONCLUSIVE', reason, findings: [], nonceOnly: false, safeAddress, policy };
 }

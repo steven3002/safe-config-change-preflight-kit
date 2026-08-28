@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 import { runCheck } from '../check/run-check.js';
-import type { Outcome } from '../check/outcome.js';
 import { exitCodeFor, USAGE_ERROR_EXIT_CODE } from './exit-codes.js';
 import { parseArguments, USAGE, UsageError } from './args.js';
+import { renderHumanReport } from '../report/human.js';
+import { renderJsonReport } from '../report/json.js';
 
 /** Entry point: wires argv to the check pipeline and turns its outcome into an exit code. */
 
@@ -22,29 +23,9 @@ async function main(argv: readonly string[]): Promise<number> {
     policyPath: command.policyPath,
   });
 
-  process.stdout.write(render(outcome));
+  const output = command.format === 'json' ? renderJsonReport(outcome) : renderHumanReport(outcome);
+  process.stdout.write(output);
   return exitCodeFor(outcome.verdict);
-}
-
-function render(outcome: Outcome): string {
-  const lines = [`${outcome.verdict}  (${outcome.mode} mode)`];
-
-  if (outcome.verdict === 'INCONCLUSIVE') {
-    lines.push(`  the Safe was not measured: ${outcome.reason}`);
-    return `${lines.join('\n')}\n`;
-  }
-
-  if (outcome.nonceOnly) {
-    lines.push(
-      '  the transaction executed and left no protected state behind; state written and reverted',
-      '  within one transaction leaves no trace, so this is not proof that it is safe',
-    );
-  }
-  for (const finding of outcome.findings) {
-    lines.push(`  ${finding.field}: ${String(finding.before)} -> ${String(finding.after)}`);
-    if (finding.detail !== undefined) lines.push(`    ${finding.detail}`);
-  }
-  return `${lines.join('\n')}\n`;
 }
 
 const exitCode = await main(process.argv.slice(2)).catch((error: unknown) => {

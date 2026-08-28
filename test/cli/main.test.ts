@@ -36,8 +36,8 @@ async function safeStatediff(...args: readonly string[]): Promise<Run> {
 test('the benign fixture exits 0 in local mode', async () => {
   const result = await safeStatediff('check', `${FIXTURES}benign.json`, '--mode', 'local');
   assert.equal(result.code, 0, `${result.stdout}${result.stderr}`);
-  assert.match(result.stdout, /^PASS {2}\(local mode\)/);
-  assert.match(result.stdout, /no proof that it is safe|not proof that it is safe/);
+  assert.match(result.stdout, /Result: PASS/);
+  assert.match(result.stdout, /state written and reverted inside one transaction leaves no trace/);
 });
 
 test('an adversarial fixture whose target holds no code exits 2, not 0', async () => {
@@ -50,13 +50,13 @@ test('an adversarial fixture whose target holds no code exits 2, not 0', async (
     'delegatecall',
   );
   assert.equal(result.code, 2, `${result.stdout}${result.stderr}`);
-  assert.match(result.stdout, /^INCONCLUSIVE/);
+  assert.match(result.stdout, /Result: INCONCLUSIVE/);
 });
 
 test('a file that cannot be read exits 2 and says the Safe was not measured', async () => {
   const result = await safeStatediff('check', `${FIXTURES}absent.json`, '--mode', 'local');
   assert.equal(result.code, 2, `${result.stdout}${result.stderr}`);
-  assert.match(result.stdout, /^INCONCLUSIVE/);
+  assert.match(result.stdout, /Result: INCONCLUSIVE/);
   assert.match(result.stdout, /the transaction file could not be read/);
 });
 

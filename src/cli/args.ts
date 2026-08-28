@@ -9,6 +9,8 @@ export class UsageError extends Error {
   override readonly name = 'UsageError';
 }
 
+export type OutputFormat = 'human' | 'json';
+
 export interface CheckCommand {
   readonly kind: 'check';
   readonly filePath: string;
@@ -18,6 +20,7 @@ export interface CheckCommand {
   readonly mode: ExecutionMode;
   /** A policy file to apply; the built-in default policy applies when none is named. */
   readonly policyPath: string | undefined;
+  readonly format: OutputFormat;
 }
 
 export interface HelpCommand {
@@ -46,6 +49,7 @@ Options:
                                    for this, so a delegatecall must be declared here. A file
                                    carrying several transactions is always a delegatecall, because
                                    it executes through MultiSendCallOnly.
+  --format <human|json>            Output format. Defaults to human.
   -h, --help                       Show this message.
 `;
 
@@ -60,6 +64,7 @@ export function parseArguments(argv: readonly string[]): Command {
     safe?: string | undefined;
     mode?: string | undefined;
     policy?: string | undefined;
+    format?: string | undefined;
     help?: boolean | undefined;
   };
   let positionals: string[];
@@ -74,6 +79,7 @@ export function parseArguments(argv: readonly string[]): Command {
         safe: { type: 'string' },
         mode: { type: 'string' },
         policy: { type: 'string' },
+        format: { type: 'string' },
         help: { type: 'boolean', short: 'h' },
       },
     }));
@@ -102,6 +108,7 @@ export function parseArguments(argv: readonly string[]): Command {
     safeAddress: readSafeAddress(values.safe),
     mode: readMode(values.mode),
     policyPath: values.policy,
+    format: readFormat(values.format),
   };
 }
 
@@ -134,4 +141,13 @@ function readOperation(raw: string | undefined): Operation {
     throw new UsageError(`--operation must be call or delegatecall, received '${raw}'`);
   }
   return operation;
+}
+
+function readFormat(raw: string | undefined): OutputFormat {
+  if (raw === undefined) return 'human';
+  const format = raw.toLowerCase();
+  if (format === 'human' || format === 'json') {
+    return format;
+  }
+  throw new UsageError(`--format must be human or json, received '${raw}'`);
 }

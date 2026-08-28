@@ -11,6 +11,7 @@ test('check takes a file path and defaults to a call', () => {
     safeAddress: undefined,
     mode: 'fork',
     policyPath: undefined,
+    format: 'human',
   });
 });
 
@@ -22,6 +23,7 @@ test('--operation selects delegatecall', () => {
     safeAddress: undefined,
     mode: 'fork',
     policyPath: undefined,
+    format: 'human',
   });
 });
 
@@ -64,6 +66,7 @@ test('--safe supplies the Safe the file may omit, canonicalised', () => {
       safeAddress: '0xE57012ae69BE66aD9beC7dadb49C1b6C65bD4ca6',
       mode: 'fork',
       policyPath: undefined,
+      format: 'human',
     },
   );
 });
