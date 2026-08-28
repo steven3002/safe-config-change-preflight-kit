@@ -1,8 +1,6 @@
-import type { PolicyVerdict } from '../policy/evaluate.js';
+import type { PolicyVerdict, PolicedFinding } from '../policy/evaluate.js';
 import type { ExecutionMode } from '../execution/running-safe.js';
-import type { Finding } from '../statediff/findings.js';
 import type { Address } from 'viem';
-import type { Policy } from '../policy/schema.js';
 
 /**
  * The result of one check, in a shape that cannot state "nothing changed" about a run that
@@ -19,19 +17,18 @@ export type Verdict = PolicyVerdict | 'INCONCLUSIVE';
 
 interface OutcomeBase {
   readonly mode: ExecutionMode;
-  readonly findings: readonly Finding[];
-  readonly safeAddress: Address | undefined;
-  readonly policy: Policy | undefined;
 }
 
 export interface ConclusiveOutcome extends OutcomeBase {
   readonly verdict: PolicyVerdict;
+  readonly findings: readonly PolicedFinding[];
   /**
    * The transaction executed and left nothing behind but the nonce. Not a clean bill of health:
    * state written and reverted inside a single transaction leaves no trace in storage, so this is
    * reported as its own outcome rather than as an unqualified pass.
    */
   readonly nonceOnly: boolean;
+  readonly safeAddress: Address;
 }
 
 export interface InconclusiveOutcome extends OutcomeBase {
@@ -40,6 +37,7 @@ export interface InconclusiveOutcome extends OutcomeBase {
   readonly reason: string;
   readonly findings: readonly [];
   readonly nonceOnly: false;
+  readonly safeAddress: Address | undefined;
 }
 
 export type Outcome = ConclusiveOutcome | InconclusiveOutcome;
@@ -47,12 +45,11 @@ export type Outcome = ConclusiveOutcome | InconclusiveOutcome;
 export function conclusive(
   mode: ExecutionMode,
   verdict: PolicyVerdict,
-  findings: readonly Finding[],
+  findings: readonly PolicedFinding[],
   nonceOnly: boolean,
-  safeAddress?: Address,
-  policy?: Policy,
+  safeAddress: Address,
 ): ConclusiveOutcome {
-  return { mode, verdict, findings, nonceOnly, safeAddress, policy };
+  return { mode, verdict, findings, nonceOnly, safeAddress };
 }
 
 /**
@@ -64,10 +61,9 @@ export function inconclusive(
   mode: ExecutionMode,
   reason: string,
   safeAddress?: Address,
-  policy?: Policy,
 ): InconclusiveOutcome {
   if (reason.trim() === '') {
     throw new Error('an inconclusive outcome must state why the Safe could not be measured');
   }
-  return { mode, verdict: 'INCONCLUSIVE', reason, findings: [], nonceOnly: false, safeAddress, policy };
+  return { mode, verdict: 'INCONCLUSIVE', reason, findings: [], nonceOnly: false, safeAddress };
 }

@@ -13,7 +13,7 @@ import { startLocalSafe } from '../execution/local-mode.js';
 import type { ExecutionMode, SafeSession } from '../execution/running-safe.js';
 import { createSafeStorageReader } from '../execution/storage-reader.js';
 import { readCodeSize } from '../execution/target-code.js';
-import { evaluateFindings } from '../policy/evaluate.js';
+import { evaluateFindings, policeFindings } from '../policy/evaluate.js';
 import { loadPolicy } from '../policy/load.js';
 import { DEFAULT_POLICY, PolicyError, type Policy } from '../policy/schema.js';
 import { resolveMultiSendCallOnly } from '../safe/multisend.js';
@@ -84,8 +84,7 @@ export async function runCheck(request: CheckRequest): Promise<Outcome> {
     return inconclusive(
       mode,
       `no chain could be started to measure the Safe on: ${describeFailure(cause)}`,
-      transaction.safeAddress,
-      policy
+      transaction.safeAddress
     );
   }
 
@@ -116,8 +115,7 @@ export async function checkAgainstSafe(
         safe.mode,
         `the file declares chain ${input.transaction.chainId} but the fork is chain ` +
           `${safe.chainId}; the transaction would be checked against a Safe on a different chain`,
-        safe.safeAddress,
-        policy
+        safe.safeAddress
       );
     }
 
@@ -131,7 +129,7 @@ export async function checkAgainstSafe(
       transaction,
     });
     if (crossCheck.status !== 'matched') {
-      return inconclusive(safe.mode, crossCheck.reason, safe.safeAddress, policy);
+      return inconclusive(safe.mode, crossCheck.reason, safe.safeAddress);
     }
 
     if (
@@ -144,8 +142,7 @@ export async function checkAgainstSafe(
           `check ran against. A delegatecall to an address with no code succeeds and does ` +
           'nothing, so the transaction was not measured, and whatever code that address holds ' +
           'elsewhere is exactly what the check exists to observe',
-        safe.safeAddress,
-        policy
+        safe.safeAddress
       );
     }
 
@@ -168,8 +165,7 @@ export async function checkAgainstSafe(
         safe.mode,
         `the transaction did not execute (${result.failure}), so the Safe's protected state was ` +
           `never measured after it: ${result.reason}`,
-        safe.safeAddress,
-        policy
+        safe.safeAddress
       );
     }
 
@@ -189,13 +185,12 @@ export async function checkAgainstSafe(
     return conclusive(
       safe.mode,
       evaluateFindings(findings, policy),
-      findings,
+      policeFindings(findings, policy),
       isNonceOnlyDiff(findings),
-      safe.safeAddress,
-      policy
+      safe.safeAddress
     );
   } catch (cause) {
-    return inconclusive(safe.mode, `the Safe could not be measured: ${describeFailure(cause)}`, safe.safeAddress, policy);
+    return inconclusive(safe.mode, `the Safe could not be measured: ${describeFailure(cause)}`, safe.safeAddress);
   }
 }
 

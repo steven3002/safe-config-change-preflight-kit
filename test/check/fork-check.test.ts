@@ -66,9 +66,9 @@ test('the masterCopy fixture fails against the real Safe', { skip }, async () =>
       policy: DEFAULT_POLICY,
     });
     assert.equal(outcome.verdict, 'FAIL', describeOutcome(outcome));
-    const singleton = outcome.findings.find((finding) => finding.field === 'singleton');
+    const singleton = outcome.findings.find((finding) => finding.finding.field === 'singleton');
     assert.ok(singleton, describeOutcome(outcome));
-    assert.equal(singleton.after, getAddress(IMPOSTOR_SINGLETON));
+    assert.equal(singleton.finding.after, getAddress(IMPOSTOR_SINGLETON));
   });
 });
 
@@ -81,14 +81,14 @@ test('the owner-rewrite fixture fails against the real Safe', { skip }, async ()
 
     const outcome = await checkAgainstSafe(session, { transaction, policy: DEFAULT_POLICY });
     assert.equal(outcome.verdict, 'FAIL', describeOutcome(outcome));
-    const owners = outcome.findings.find((finding) => finding.field === 'owners');
+    const owners = outcome.findings.find((finding) => finding.finding.field === 'owners');
     assert.ok(owners, describeOutcome(outcome));
-    assert.deepEqual(owners.after, [getAddress(ATTACKER)]);
+    assert.deepEqual(owners.finding.after, [getAddress(ATTACKER)]);
 
-    const threshold = outcome.findings.find((finding) => finding.field === 'threshold');
+    const threshold = outcome.findings.find((finding) => finding.finding.field === 'threshold');
     assert.ok(threshold, describeOutcome(outcome));
-    assert.equal(threshold.before, 4);
-    assert.equal(threshold.after, 1);
+    assert.equal(threshold.finding.before, 4);
+    assert.equal(threshold.finding.after, 1);
   });
 });
 
@@ -110,9 +110,9 @@ test('changeThreshold(1) against the 4-of-7 Safe is a FAIL, not a PASS', { skip 
     });
 
     assert.equal(outcome.verdict, 'FAIL', describeOutcome(outcome));
-    const threshold = outcome.findings.find((finding) => finding.field === 'threshold');
+    const threshold = outcome.findings.find((finding) => finding.finding.field === 'threshold');
     assert.ok(threshold, describeOutcome(outcome));
-    assert.equal(threshold.before, 4);
-    assert.equal(threshold.after, 1);
+    assert.equal(threshold.finding.before, 4);
+    assert.equal(threshold.finding.after, 1);
   });
 });

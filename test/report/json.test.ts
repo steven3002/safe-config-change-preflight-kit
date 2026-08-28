@@ -2,13 +2,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { renderJsonReport, type JsonReport } from '../../src/report/json.js';
 import { conclusive, inconclusive } from '../../src/check/outcome.js';
-import { DEFAULT_POLICY } from '../../src/policy/schema.js';
 
 test('json report', async (t) => {
   await t.test('keys match exactly for conclusive', () => {
     const outcome = conclusive('fork', 'FAIL', [
-      { field: 'threshold', slot: '0x123', before: 2, after: 1, detail: 'decreased' }
-    ], false, '0x1234', DEFAULT_POLICY);
+      {
+        finding: { field: 'threshold', slot: '0x123', before: 2, after: 1, detail: 'decreased' },
+        disposition: 'fail',
+        rule: 'threshold_decrease'
+      }
+    ], false, '0x1234');
     const json = JSON.parse(renderJsonReport(outcome)) as JsonReport;
     
     // Assert keys
@@ -26,7 +29,7 @@ test('json report', async (t) => {
   });
 
   await t.test('keys match exactly for inconclusive', () => {
-    const outcome = inconclusive('local', 'failed to connect', '0x1234', DEFAULT_POLICY);
+    const outcome = inconclusive('local', 'failed to connect', '0x1234');
     const json = JSON.parse(renderJsonReport(outcome)) as JsonReport;
     
     assert.deepEqual(Object.keys(json).sort(), ['findings', 'mode', 'nonceOnly', 'reason', 'safeAddress', 'verdict']);

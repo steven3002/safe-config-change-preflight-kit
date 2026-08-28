@@ -1,5 +1,11 @@
+/**
+ * Renders the measurement outcome as machine-readable JSON.
+ *
+ * Exists to provide a stable consumed interface for external tools. The JSON key set
+ * is fixed by construction, meaning the presence of keys like 'disposition' and 'rule'
+ * does not vary dynamically, allowing robust parsing by CI/CD integrations.
+ */
 import type { Outcome } from '../check/outcome.js';
-import { policeFindings } from '../policy/evaluate.js';
 
 export interface JsonFinding {
   field: string;
@@ -7,8 +13,8 @@ export interface JsonFinding {
   before: unknown;
   after: unknown;
   detail: string | null;
-  disposition?: string;
-  rule?: string;
+  disposition: string;
+  rule: string;
 }
 
 export interface JsonReport {
@@ -33,26 +39,15 @@ export function renderJsonReport(outcome: Outcome): string {
     report.nonceOnly = false;
   } else {
     report.nonceOnly = outcome.nonceOnly;
-    if (outcome.policy) {
-      const policed = policeFindings(outcome.findings, outcome.policy);
-      report.findings = policed.map(({ finding, disposition, rule }) => ({
-        field: finding.field,
-        slot: finding.slot,
-        before: finding.before,
-        after: finding.after,
-        detail: finding.detail ?? null,
-        disposition,
-        rule
-      }));
-    } else {
-      report.findings = outcome.findings.map(finding => ({
-        field: finding.field,
-        slot: finding.slot,
-        before: finding.before,
-        after: finding.after,
-        detail: finding.detail ?? null,
-      }));
-    }
+    report.findings = outcome.findings.map(({ finding, disposition, rule }) => ({
+      field: finding.field,
+      slot: finding.slot,
+      before: finding.before,
+      after: finding.after,
+      detail: finding.detail ?? null,
+      disposition,
+      rule
+    }));
   }
 
   return JSON.stringify(report, null, 2) + '\n';

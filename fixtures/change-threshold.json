@@ -1,0 +1,29 @@
+{
+  "version": "1.0",
+  "chainId": "1",
+  "createdAt": 1756080000000,
+  "meta": {
+    "name": "Change Threshold",
+    "description": "Changes threshold",
+    "txBuilderVersion": "1.16.5",
+    "createdFromSafeAddress": "0xE57012ae69BE66aD9beC7dadb49C1b6C65bD4ca6",
+    "createdFromOwnerAddress": ""
+  },
+  "transactions": [
+    {
+      "to": "0xE57012ae69BE66aD9beC7dadb49C1b6C65bD4ca6",
+      "value": "0",
+      "data": null,
+      "contractMethod": {
+        "inputs": [
+          { "name": "_threshold", "type": "uint256", "internalType": "uint256" }
+        ],
+        "name": "changeThreshold",
+        "payable": false
+      },
+      "contractInputsValues": {
+        "_threshold": "1"
+      }
+    }
+  ]
+}

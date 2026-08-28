@@ -32,7 +32,7 @@ test('an inconclusive outcome carries no findings, so nothing can read it as a c
 });
 
 test('a conclusive outcome exits by its verdict', () => {
-  assert.equal(exitCodeFor(conclusive('local', 'PASS', [], true).verdict), 0);
-  assert.equal(exitCodeFor(conclusive('local', 'WARN', [], false).verdict), 0);
-  assert.equal(exitCodeFor(conclusive('local', 'FAIL', [], false).verdict), 1);
+  assert.equal(exitCodeFor(conclusive('local', 'PASS', [], true, '0x0000000000000000000000000000000000000000').verdict), 0);
+  assert.equal(exitCodeFor(conclusive('local', 'WARN', [], false, '0x0000000000000000000000000000000000000000').verdict), 0);
+  assert.equal(exitCodeFor(conclusive('local', 'FAIL', [], false, '0x0000000000000000000000000000000000000000').verdict), 1);
 });

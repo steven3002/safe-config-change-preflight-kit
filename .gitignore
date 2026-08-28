@@ -2,3 +2,4 @@ dtl1
 node_modules/
 dist/
 *.tsbuildinfo
+scratch/

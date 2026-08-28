@@ -58,7 +58,7 @@ test('the benign fixture passes, having changed nothing but the nonce', async ()
   assert.equal(outcome.verdict, 'PASS', describe(outcome));
   assert.equal(outcome.nonceOnly, true, describe(outcome));
   assert.deepEqual(
-    outcome.findings.map((finding) => finding.field),
+    outcome.findings.map((finding) => finding.finding.field),
     ['nonce'],
   );
 });
@@ -74,9 +74,9 @@ test('the masterCopy fixture fails, and the finding names the impostor', async (
     assert.equal(outcome.verdict, 'FAIL', describe(outcome));
     assert.equal(outcome.nonceOnly, false);
 
-    const singleton = outcome.findings.find((finding) => finding.field === 'singleton');
+    const singleton = outcome.findings.find((finding) => finding.finding.field === 'singleton');
     assert.ok(singleton, describe(outcome));
-    assert.equal(singleton.after, getAddress(IMPOSTOR_SINGLETON));
+    assert.equal(singleton.finding.after, getAddress(IMPOSTOR_SINGLETON));
   });
 });
 
@@ -90,14 +90,14 @@ test('the owner-rewrite fixture fails, reporting the new owner set and the falle
     const outcome = await checkAgainstSafe(session, { transaction, policy: DEFAULT_POLICY });
     assert.equal(outcome.verdict, 'FAIL', describe(outcome));
 
-    const owners = outcome.findings.find((finding) => finding.field === 'owners');
+    const owners = outcome.findings.find((finding) => finding.finding.field === 'owners');
     assert.ok(owners, describe(outcome));
-    assert.deepEqual(owners.after, [getAddress(ATTACKER)]);
+    assert.deepEqual(owners.finding.after, [getAddress(ATTACKER)]);
 
-    const threshold = outcome.findings.find((finding) => finding.field === 'threshold');
+    const threshold = outcome.findings.find((finding) => finding.finding.field === 'threshold');
     assert.ok(threshold, describe(outcome));
-    assert.equal(threshold.before, 2);
-    assert.equal(threshold.after, 1);
+    assert.equal(threshold.finding.before, 2);
+    assert.equal(threshold.finding.after, 1);
   });
 });
 
