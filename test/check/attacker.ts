@@ -52,6 +52,7 @@ export function ownerSetRewrite(attacker: Address): Hex {
 /** Runtime code that reverts with no data, for the path where the transaction does not execute. */
 export const REVERTING_RUNTIME: Hex = '0x60006000fd';
 
+
 export async function etch(session: SafeSession, address: Address, bytecode: Hex): Promise<void> {
   await createTestClient({ mode: 'anvil', transport: http(session.safe.rpcUrl) }).setCode({
     address,

@@ -92,6 +92,8 @@ Requires [Foundry](https://book.getfoundry.sh/getting-started/installation) on `
 or later.
 
 ```bash
+git clone https://github.com/steven3002/safe-config-change-preflight-kit.git
+cd safe-config-change-preflight-kit
 npm install
 npm run build
 
